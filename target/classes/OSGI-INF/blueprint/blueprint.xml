@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Copyright 2014-2017, Red Hat, Inc. and/or its affiliates, and individual
+    contributors by the @authors tag. 
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<!--
+   This is the OSGi Blueprint XML file defining the Camel context and routes.  Because the file is in the
+   OSGI-INF/blueprint directory inside our JAR, it will be automatically activated as soon as the bundle is installed.
+
+   The root element for any OSGi Blueprint file is 'blueprint' - you also see the namespace definitions for both the Blueprint
+   and the Camel namespaces.
+-->
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="              http://www.osgi.org/xmlns/blueprint/v1.0.0 https://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd              http://camel.apache.org/schema/blueprint http://camel.apache.org/schema/blueprint/camel-blueprint.xsd">
+    <!--
+      The namespace for the camelContext element in Blueprint is 'https://camel.apache.org/schema/blueprint'.
+
+      While it is not required to assign id's to the <camelContext/> and <route/> elements, it is a good idea
+      to set those for runtime management purposes (logging, JMX MBeans, ...)
+    -->
+    <camelContext id="cbr-example-context" xmlns="http://camel.apache.org/schema/blueprint">
+        <!--
+          When this route is started, it will automatically create the work/cbr/input directory where you can drop the
+          file that need to be processed.
+
+          The <log/> elements are used to add human-friendly business logging statements. They make it easier to see what the
+          route is doing.
+
+          The <choice/> element contains the content based router. The two <when/> clauses use XPath to define the criteria 
+          for entering that part of the route. When the country in the XML message is set to UK or US, the file will be 
+          moved to a directory for that country. The <otherwise/> element ensures that any file that does not meet the 
+          requirements for either of the <when/> elements will be moved to the work/cbr/output/others directory.
+        -->
+        <route id="cbr-route">
+            <from id="_from1" uri="file:C:/fuse-karaf-7.0.0.fuse-000191-redhat-1/work/cbr/input?noop=true"/>
+            <log id="_log1" message="Receiving order ${file:name}"/>
+            <choice id="_choice1">
+                <when id="_when1">
+                    <xpath id="_xpath1">/order/customer/country = 'UK'</xpath>
+                    <log id="_log2" message="Sending order ${file:name} to the UK"/>
+                    <wireTap id="_wireTap1" uri="direct:foo">
+                        <setHeader headerName="foo" id="_setHeader1">
+                            <constant>bar</constant>
+                        </setHeader>
+                    </wireTap>
+                    <to id="_to1" uri="file:C:/fuse-karaf-7.0.0.fuse-000191-redhat-1/work/cbr/output/uk"/>
+                </when>
+                <when id="_when2">
+                    <xpath id="_xpath2">/order/customer/country = 'US'</xpath>
+                    <log id="_log3" message="Sending order ${file:name} to the US"/>
+                    <wireTap id="_wireTap2" uri="direct:foo2">
+                        <setHeader headerName="foo2" id="_setHeader2">
+                            <constant>bar</constant>
+                        </setHeader>
+                    </wireTap>
+                    <to id="_to2" uri="file:C:/fuse-karaf-7.0.0.fuse-000191-redhat-1/work/cbr/output/us"/>
+                </when>
+                <otherwise id="_otherwise1">
+                    <log id="_log4" message="Sending order ${file:name} to another country"/>
+                    <wireTap id="_wireTap3" uri="direct:foo3">
+                        <setHeader headerName="foo3" id="_setHeader3">
+                            <constant>bar</constant>
+                        </setHeader>
+                    </wireTap>
+                    <to id="_to3" uri="file:C:/fuse-karaf-7.0.0.fuse-000191-redhat-1/work/cbr/output/others"/>
+                </otherwise>
+            </choice>
+            <log id="_log5" message="Done processing ${file:name}"/>
+        </route>
+        <route id="_route4">
+            <from id="_from5" uri="direct:foo"/>
+            <filter id="_filter1">
+                <language language="el">${in.headers.foo=='bar'}</language>
+                <to id="_to7" uri="seda:bar"/>
+            </filter>
+        </route>
+        <route id="_route5">
+            <from id="_from6" uri="direct:foo2"/>
+            <filter id="_filter2">
+                <language language="el">${in.headers['foo2']=='bar'}</language>
+                <to id="_to8" uri="seda:bar"/>
+            </filter>
+        </route>
+        <route id="_route6">
+            <from id="_from7" uri="direct:foo3"/>
+            <filter id="_filter3">
+                <language language="el">${in.headers.foo3=='bar'}</language>
+                <to id="_to9" uri="seda:bar"/>
+            </filter>
+        </route>
+        <route id="_route7">
+            <from id="_from8" uri="seda:bar"/>
+            <log id="_log6" message="${body}"/>
+        </route>
+    </camelContext>
+</blueprint>
